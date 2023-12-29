@@ -1,4 +1,11 @@
 // C Compiler
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdbool.h>
+
+bool had_error = false;
 
 size_t get_file_size(FILE *f) {
   size_t file_size;
@@ -18,6 +25,15 @@ void read_file(FILE * f, char *buffer, size_t file_size) {
   fclose(f); 
 }
 
+
+/* Error Handling */
+void error(int line, char *msg) {
+  printf("line %d | error: %s\n", line, msg);
+  // TODO Halt Parser
+  had_error = true;
+}
+
+/* Driver */
 int main(int argc, char **argv) {
   if (argc != 2) {
     printf("%s\n", "usage: foo <filename>");
