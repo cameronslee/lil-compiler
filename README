@@ -16,3 +16,5 @@ C Compiler
 Purpose is to perform a rewrite of some of the front end of another compiler project
 
 This project will serve as the basis for future compiler projects
+
+Remember to put the foos in your foobars
