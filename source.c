@@ -142,9 +142,10 @@ char *get_token_name(token_name_T type) {
   case NIL: return "NIL";
 
   /* Misc */
-  case NIL: return "NIL";
-  case NIL: return "NIL";
-  case NIL: return "NIL";
+  case END: return "END";
+  case IDENTIFIER: return "IDENTIFIER";
+  case STRING: return "STRING";
+  case NUMBER: return "NUMBER";
   
   // TODO support assembly level operations
   // TODO support bitwise operators
@@ -222,17 +223,44 @@ void add_token(lexer_T *lexer, token_type_T t) {
     }
 
   lexer->tokens[tokens_index]->type = t;
+  lexer->tokens[tokens_index]->lexeme = get_token_name(t);
+  lexer->tokens[tokens_index]->line = lexer->line;
 
+  tokens_index += 1;
 }
 
 /* Overloaded functions handle literals */
 void add_token(lexer_T *lexer, token_type_T t, char *literal) {
-  
-  
+  if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
+    if (!resize(lexer)) {
+      // TODO create seperate handle for internal errors (errors that aren't from the lexer)
+      perror("error: unable to resize token array");
+      exit(1);
+    }
+
+  lexer->tokens[tokens_index]->type = t;
+  lexer->tokens[tokens_index]->lexeme = literal;
+  lexer->tokens[tokens_index]->line = lexer->line;
+
+  tokens_index += 1;
 }
 
 void add_token(lexer_T *lexer, token_type_T t, int literal) {
-  
+  if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
+    if (!resize(lexer)) {
+      // TODO create seperate handle for internal errors (errors that aren't from the lexer)
+      perror("error: unable to resize token array");
+      exit(1);
+    }
+
+  char buf[10];
+  sprintf(buf, "%d", literal);
+
+  lexer->tokens[tokens_index]->type = t;
+  lexer->tokens[tokens_index]->lexeme = &buf;
+  lexer->tokens[tokens_index]->line = lexer->line;
+
+  tokens_index += 1;
 }
 
 
