@@ -9,6 +9,15 @@
 bool had_error = false;
 bool lexer_at_end = false;
 
+/* ============================== ERROR HANDLING ===============================
+ *
+ * ===========================================================================*/
+void error(int line, char *msg) {
+  printf("line %d | error: %s\n", line, msg);
+  // TODO Halt Parser
+  had_error = true;
+}
+
 /* ============================== TOKEN ========================================
  *
  * ===========================================================================*/
@@ -75,24 +84,24 @@ typedef enum {
   /* Misc */
   END,                       /* EOF */
   IDENTIFIER, STRING, NUMBER, /* Literals */
-  END // EOF
   
   // TODO support assembly level operations
   // TODO support bitwise operators
 } token_type_T;
 
-char *get_token_name(token_name_T type) {
+char *get_token_name(token_type_T type) {
   switch (type) {
   /* Single Character Tokens */
   case SEMI: return "SEMI";
   case COMMA: return "COMMA";
+  case COLON: return "COLON";
   case OCB: return "OCB";
   case CCB: return "CCB";
   case OP: return "OP";
   case CP: return "CP";
   case OSB: return "OSB";
   case CSB: return "CSB";
-  case QUEST: return "QUEST"
+  case QUEST: return "QUEST";
   case DOT: return "DOT";
 
   /* Single or Double Character Tokens */
@@ -187,7 +196,7 @@ lexer_T * init_lexer(char *src, size_t len) {
   lexer->src_len = len;
   lexer->current = 0;
   lexer->start = 0;
-  lexer->line_number = 1;
+  lexer->line = 1;
 
   // TODO support dynamic resizing
   lexer->tokens_capacity = INITIAL_CAPACITY;
@@ -198,9 +207,9 @@ lexer_T * init_lexer(char *src, size_t len) {
 }
 
 bool resize(lexer_T *lexer) {
-  lexer->tokens = realloc(void *lexer->tokens, (lexer->tokens_capacity * 2));
+  lexer->tokens = realloc(lexer->tokens, (lexer->tokens_capacity * 2));
 
-  return (lexer->tokens == NULL)
+  return (lexer->tokens == NULL);
 }
 
 bool is_end(lexer_T *lexer) {
@@ -208,10 +217,12 @@ bool is_end(lexer_T *lexer) {
 }
 
 char advance(lexer_T *lexer) {
-  if (lexer->current < lexer->src_size && !is_end(lexer)) {
-    lexer->index++;
-    lexer->current = lexer->src[lexer->index];
+  if (lexer->current < lexer->src_len && !is_end(lexer)) {
+    lexer->current++; 
+    return lexer->src[lexer->current];
   }
+
+  return -1;
 }
 
 void add_token(lexer_T *lexer, token_type_T t) {
@@ -221,53 +232,55 @@ void add_token(lexer_T *lexer, token_type_T t) {
       perror("error: unable to resize token array");
       exit(1);
     }
+  }
 
-  lexer->tokens[tokens_index]->type = t;
-  lexer->tokens[tokens_index]->lexeme = get_token_name(t);
-  lexer->tokens[tokens_index]->line = lexer->line;
+  lexer->tokens[lexer->tokens_index].type = t;
+  lexer->tokens[lexer->tokens_index].lexeme = get_token_name(t);
+  lexer->tokens[lexer->tokens_index].line = lexer->line;
 
-  tokens_index += 1;
+  lexer->tokens_index += 1;
 }
 
 /* Overloaded functions handle literals */
-void add_token(lexer_T *lexer, token_type_T t, char *literal) {
+void add_token_str(lexer_T *lexer, token_type_T t, char *literal) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
       perror("error: unable to resize token array");
       exit(1);
     }
+  }
 
-  lexer->tokens[tokens_index]->type = t;
-  lexer->tokens[tokens_index]->lexeme = literal;
-  lexer->tokens[tokens_index]->line = lexer->line;
+  lexer->tokens[lexer->tokens_index].type = t;
+  lexer->tokens[lexer->tokens_index].lexeme = literal;
+  lexer->tokens[lexer->tokens_index].line = lexer->line;
 
-  tokens_index += 1;
+  lexer->tokens_index += 1;
 }
 
-void add_token(lexer_T *lexer, token_type_T t, int literal) {
+void add_token_int(lexer_T *lexer, token_type_T t, int literal) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
       perror("error: unable to resize token array");
       exit(1);
     }
-
+  }
+  
   char buf[10];
-  sprintf(buf, "%d", literal);
+  sprintf(buf,"%d", literal);
+  lexer->tokens[lexer->tokens_index].type = t;
+  lexer->tokens[lexer->tokens_index].lexeme = buf;
+  lexer->tokens[lexer->tokens_index].line = lexer->line;
 
-  lexer->tokens[tokens_index]->type = t;
-  lexer->tokens[tokens_index]->lexeme = &buf;
-  lexer->tokens[tokens_index]->line = lexer->line;
-
-  tokens_index += 1;
+  lexer->tokens_index += 1;
 }
 
 
 void consume_token(lexer_T *lexer) {
   char c = advance(lexer);
 
-  switch (c):
+  switch (c) {
     // single char 
     case ';': add_token(lexer, SEMI); break;
     case ',': add_token(lexer, COMMA); break;
@@ -283,17 +296,18 @@ void consume_token(lexer_T *lexer) {
 
     // single or double char
 
-    default: error(lexer->line_number, "unexpected character."); break;
+    default: error(lexer->line, "unexpected character."); break;
+  }
 }
 
 // tokens are added to lexer
 void scan_tokens(lexer_T *lexer) {
-  while (!is_end()) {
+  while (!is_end(lexer)) {
     lexer->start = lexer->current;
     consume_token(lexer);
   }
 
-  add_token(lexer, END, lexer->line_number);
+  add_token(lexer, END);
 }
 
 /* ============================== PARSER =======================================
@@ -301,14 +315,6 @@ void scan_tokens(lexer_T *lexer) {
  * ===========================================================================*/
   // pass
 
-/* ============================== ERROR HANDLING ===============================
- *
- * ===========================================================================*/
-void error(int line, char *msg) {
-  printf("line %d | error: %s\n", line, msg);
-  // TODO Halt Parser
-  had_error = true;
-}
 
 /* ============================== DRIVER =======================================
  *
@@ -347,6 +353,8 @@ int main(int argc, char **argv) {
   char *buffer = malloc(file_size * sizeof(char));
 
   read_file(f, buffer, file_size);
+
+  printf(buffer);
 
   printf("%s\n", buffer); 
 }
