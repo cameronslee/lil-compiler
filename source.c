@@ -13,27 +13,143 @@ bool lexer_at_end = false;
  *
  * ===========================================================================*/
 typedef enum {
-  // single character tokens
-  LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
-	LEFT_BRACKET, RIGHT_BRACKET, COMMA, DOT, MINUS, PLUS, 
-	SEMICOLON, SLASH, STAR,
+  /* Single Character Tokens */
+  SEMI,                      /* ; */
+  COMMA,                     /* , */
+  COLON,                     /* : */
+  OCB,                       /* { */
+  CCB,                       /* } */
+  OP,                        /* ( */
+  CP,                        /* ) */
+  OSB,                       /* [ */
+  CSB,                       /* ] */
+  QUEST,                     /* ? */
+  DOT,                       /* . */
 
-  // single or double character tokens
-  BANG, BANG_EQUAL,
-  EQUAL, EQUAL_EQUAL,
-  GREATER, GREATER_EQUAL,
-  LESS, LESS_EQUAL,
+  /* Single or Double Character Tokens */
+  INC,                       /* ++ */
+  DEC,                       /* -- */
+  ARROW,                     /* -> */
+  ADDEQ,                     /* += */
+  SUBEQ,                     /* -= */
+  MULEQ,                     /* *= */
+  DIVEQ,                     /* /= */
+  MODEQ,                     /* %= */
+  AND,                       /* && */
+  AMP,                       /* & */
+  OR,                        /* || */
+  LE,                        /* <= */
+  GE,                        /* >= */
+  LT,                        /* < */
+  GT,                        /* > */
+  EQ,                        /* == */
+  NOTEQ,                     /* != */
+  ASSIGN,                    /* = */
+  NOT,                       /* ! */
 
-  // literals
-  IDENTIFIER, STRING, NUMBER,
+  /* Keywords */
+  INT,                       /* int */
+  UNSIGN,                    /* unsigned*/
+  CHAR,                      /* char */
+  STAT,                      /* static */
+  EXTERN,                    /* extern */
+  CONST,                     /* const */
+  IF,                        /* if */
+  ELSE,                      /* else */
+  WHILE,                     /* while */
+  DO,                        /* do */
+  FOR,                       /* for */
+  SWITCH,                    /* switch */
+  CASE,                      /* case */
+  DEFAULT,                   /* default */
+  RETURN,                    /* return */
+  BREAK,                     /* break */
+  CONTIN,                    /* continue */
+  GOTO,                      /* goto */
+  SIZEOF,                    /* sizeof */
+  STRUCT,                    /* struct */
+  UNION,                     /* union */
+  VOID,                      /* void */
+  NIL,                       /* NULL */
 
-  // keywords
-  AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-  PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
-
+  /* Misc */
+  END,                       /* EOF */
+  IDENTIFIER, STRING, NUMBER, /* Literals */
   END // EOF
-
+  
+  // TODO support assembly level operations
+  // TODO support bitwise operators
 } token_type_T;
+
+char *get_token_name(token_name_T type) {
+  switch (type) {
+  /* Single Character Tokens */
+  case SEMI: return "SEMI";
+  case COMMA: return "COMMA";
+  case OCB: return "OCB";
+  case CCB: return "CCB";
+  case OP: return "OP";
+  case CP: return "CP";
+  case OSB: return "OSB";
+  case CSB: return "CSB";
+  case QUEST: return "QUEST"
+  case DOT: return "DOT";
+
+  /* Single or Double Character Tokens */
+  case INC: return "INC";
+  case DEC: return "DEC";
+  case ARROW: return "ARROW";
+  case ADDEQ: return "ADDEQ";
+  case SUBEQ: return "SUBEQ";
+  case MULEQ: return "MULEQ";
+  case DIVEQ: return "DIVEQ";
+  case MODEQ: return "MODEQ";
+  case AND: return "AND";
+  case AMP: return "AMP";
+  case OR: return "OR";
+  case LE: return "LE";
+  case GE: return "GE";
+  case LT: return "LT";
+  case GT: return "GT";
+  case EQ: return "EQ";
+  case NOTEQ: return "NOTEQ";
+  case ASSIGN: return "ASSIGN";
+  case NOT: return "NOT";
+
+  /* Keywords */
+  case INT: return "INT";
+  case UNSIGN: return "UNSIGN";
+  case CHAR: return "CHAR";
+  case STAT: return "STAT";
+  case EXTERN: return "EXTERN";
+  case CONST: return "CONST";
+  case IF: return "IF";
+  case ELSE: return "ELSE";
+  case WHILE: return "WHILE";
+  case DO: return "DO";
+  case FOR: return "FOR";
+  case SWITCH: return "SWITCH";
+  case CASE: return "CASE";
+  case DEFAULT: return "DEFAULT";
+  case RETURN: return "RETURN";
+  case BREAK: return "BREAK";
+  case CONTIN: return "CONTIN";
+  case GOTO: return "GOTO";
+  case SIZEOF: return "SIZEOF";
+  case STRUCT: return "STRUCT";
+  case UNION: return "UNION";
+  case VOID: return "VOID";
+  case NIL: return "NIL";
+
+  /* Misc */
+  case NIL: return "NIL";
+  case NIL: return "NIL";
+  case NIL: return "NIL";
+  
+  // TODO support assembly level operations
+  // TODO support bitwise operators
+  }
+}
 
 typedef struct {
   token_type_T type;
@@ -99,18 +215,19 @@ char advance(lexer_T *lexer) {
 
 void add_token(lexer_T *lexer, token_type_T t) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
-
     if (!resize(lexer)) {
-      // TODO create seperate handle for internal errors (errors that aren't from the lexer
+      // TODO create seperate handle for internal errors (errors that aren't from the lexer)
       perror("error: unable to resize token array");
       exit(1);
     }
 
-  lexer->tokens[tokens_index++] = t;
+  lexer->tokens[tokens_index]->type = t;
+
 }
 
 /* Overloaded functions handle literals */
 void add_token(lexer_T *lexer, token_type_T t, char *literal) {
+  
   
 }
 
@@ -122,22 +239,21 @@ void add_token(lexer_T *lexer, token_type_T t, int literal) {
 void consume_token(lexer_T *lexer) {
   char c = advance(lexer);
 
-  // handle single char tokens
   switch (c):
-    case '(': add_token(lexer, LEFT_PAREN); break;
-    case ')': add_token(lexer, RIGHT_PAREN); break;
-    case '{': add_token(lexer, LEFT_BRACE); break;
-    case '}': add_token(lexer, RIGHT_BRACE); break;
-    case '[': add_token(lexer, LEFT_BRACKET); break;
-    case ']': add_token(lexer, RIGHT_BRACKET); break;
+    // single char 
+    case ';': add_token(lexer, SEMI); break;
     case ',': add_token(lexer, COMMA); break;
+    case ':': add_token(lexer, COLON); break;
+    case '(': add_token(lexer, OP); break;
+    case ')': add_token(lexer, CP); break;
+    case '{': add_token(lexer, OCB); break;
+    case '}': add_token(lexer, CCB); break;
+    case '[': add_token(lexer, OSB); break;
+    case ']': add_token(lexer, CSB); break;
+    case '?': add_token(lexer, COMMA); break;
     case '.': add_token(lexer, DOT); break;
-    case '-': add_token(lexer, MINUS); break;
-    case '+': add_token(lexer, PLUS); break;
-    case '*': add_token(lexer, STAR); break;
-    case '/': add_token(lexer, SLASH); break;
-    case ';': add_token(lexer, SEMICOLON); break;
 
+    // single or double char
 
     default: error(lexer->line_number, "unexpected character."); break;
 }
