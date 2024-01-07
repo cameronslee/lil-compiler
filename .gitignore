@@ -57,7 +57,9 @@ dkms.conf
 .dSYM
 .vscode
 notes
+test.c
 
 # Build it yourself fool
 source
+
 

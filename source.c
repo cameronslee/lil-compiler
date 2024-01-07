@@ -36,25 +36,40 @@ typedef enum {
   DOT,                       /* . */
 
   /* Single or Double Character Tokens */
+  ADD,                       /* + */
   INC,                       /* ++ */
+  ADDEQ,                     /* += */
+
+  SUB,                       /* - */
   DEC,                       /* -- */
   ARROW,                     /* -> */
-  ADDEQ,                     /* += */
   SUBEQ,                     /* -= */
+
+  MUL,                       /* * */
   MULEQ,                     /* *= */
+
+  DIV,                       /* / */
   DIVEQ,                     /* /= */
+
+  MOD,                       /* % */
   MODEQ,                     /* %= */
-  AND,                       /* && */
-  AMP,                       /* & */
-  OR,                        /* || */
-  LE,                        /* <= */
-  GE,                        /* >= */
-  LT,                        /* < */
-  GT,                        /* > */
-  EQ,                        /* == */
-  NOTEQ,                     /* != */
-  ASSIGN,                    /* = */
+
   NOT,                       /* ! */
+  NOTEQ,                     /* != */
+
+  AMP,                       /* & */
+  AND,                       /* && */
+  
+  LT,                        /* < */
+  LE,                        /* <= */
+
+  GT,                        /* > */
+  GE,                        /* >= */
+
+  ASSIGN,                    /* = */
+  EQ,                        /* == */
+
+  OR,                        /* || */
 
   /* Keywords */
   INT,                       /* int */
@@ -105,6 +120,11 @@ char *get_token_name(token_type_T type) {
   case DOT: return "DOT";
 
   /* Single or Double Character Tokens */
+  case ADD: return "ADD";
+  case SUB: return "SUB";
+  case MUL: return "MUL";
+  case DIV: return "DIV";
+  case MOD: return "MOD";
   case INC: return "INC";
   case DEC: return "DEC";
   case ARROW: return "ARROW";
@@ -276,6 +296,19 @@ void add_token_int(lexer_T *lexer, token_type_T t, int literal) {
   lexer->tokens_index += 1;
 }
 
+char peek(lexer_T *lexer, int offset) {
+  if ((lexer->current + offset) >= lexer->src_len) return -1;
+  return lexer->src[lexer->current + offset];
+}
+
+bool match(lexer_T *lexer, char expected) {
+  if (is_end(lexer)) return false;
+  if (peek(lexer, 1) != expected) return false;
+
+  advance(lexer);
+  return true;
+}
+
 
 void consume_token(lexer_T *lexer) {
   char c = advance(lexer);
@@ -295,6 +328,18 @@ void consume_token(lexer_T *lexer) {
     case '.': add_token(lexer, DOT); break;
 
     // single or double char
+    case '+': 
+      add_token(match(lexer, '=') ? ADDEQ : ADD); break;
+    case '-': 
+      add_token(match(lexer, '=') ? SUBEQ : SUB); break;
+    case '*': 
+      add_token(match(lexer, '=') ? MULEQ : MUL); break;
+    case '/': 
+      add_token(match(lexer, '=') ? DIV : DIVEQ); break;
+    case '%': 
+      add_token(match(lexer, '=') ? MOD : MODEQ); break;
+      
+      
 
     default: error(lexer->line, "unexpected character."); break;
   }
@@ -303,7 +348,6 @@ void consume_token(lexer_T *lexer) {
 // tokens are added to lexer
 void scan_tokens(lexer_T *lexer) {
   while (!is_end(lexer)) {
-    lexer->start = lexer->current;
     consume_token(lexer);
   }
 
