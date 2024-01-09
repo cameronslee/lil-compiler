@@ -14,7 +14,7 @@ bool lexer_at_end = false;
  * ===========================================================================*/
 void error(int line, char *msg) {
   printf("line %d | error: %s\n", line, msg);
-  // TODO Halt Parser
+  // TODO Halt Parser, enter panic mode
   had_error = true;
 }
 
@@ -68,7 +68,8 @@ typedef enum {
 
   ASSIGN,                    /* = */
   EQ,                        /* == */
-
+  
+  BWOR,                      /* | */ // bitwise OR
   OR,                        /* || */
 
   /* Keywords */
@@ -121,29 +122,40 @@ char *get_token_name(token_type_T type) {
 
   /* Single or Double Character Tokens */
   case ADD: return "ADD";
-  case SUB: return "SUB";
-  case MUL: return "MUL";
-  case DIV: return "DIV";
-  case MOD: return "MOD";
   case INC: return "INC";
+  case ADDEQ: return "ADDEQ";
+
+  case SUB: return "SUB";
   case DEC: return "DEC";
   case ARROW: return "ARROW";
-  case ADDEQ: return "ADDEQ";
   case SUBEQ: return "SUBEQ";
+  
+  case MUL: return "MUL";
+
+  case DIV: return "DIV";
+
+  case MOD: return "MOD";
+
   case MULEQ: return "MULEQ";
   case DIVEQ: return "DIVEQ";
   case MODEQ: return "MODEQ";
-  case AND: return "AND";
+
   case AMP: return "AMP";
-  case OR: return "OR";
+  case AND: return "AND";
+
   case LE: return "LE";
   case GE: return "GE";
   case LT: return "LT";
   case GT: return "GT";
-  case EQ: return "EQ";
-  case NOTEQ: return "NOTEQ";
+
   case ASSIGN: return "ASSIGN";
+  case EQ: return "EQ";
+  
   case NOT: return "NOT";
+  case NOTEQ: return "NOTEQ";
+  
+  case BWOR: return "BWOR";
+  case OR: return "OR";
 
   /* Keywords */
   case INT: return "INT";
@@ -329,17 +341,77 @@ void consume_token(lexer_T *lexer) {
 
     // single or double char
     case '+': 
-      add_token(match(lexer, '=') ? ADDEQ : ADD); break;
+      if (match(lexer, '+')) {
+        add_token(lexer, INC);
+      }
+      else if (match(lexer, '=')) {
+        add_token(lexer, ADDEQ);
+      }
+      else add_token(lexer, ADD);
+      break;
+
     case '-': 
-      add_token(match(lexer, '=') ? SUBEQ : SUB); break;
+      if (match(lexer, '-')) {
+        add_token(lexer, DEC);
+      }
+      else if (match(lexer, '>')) {
+        add_token(lexer, ARROW);
+      }
+      else if (match(lexer, '=')) {
+        add_token(lexer, SUBEQ);
+      }
+      else add_token(lexer, SUB);
+      break;
+
     case '*': 
-      add_token(match(lexer, '=') ? MULEQ : MUL); break;
+      add_token(lexer, match(lexer, '=') ? MULEQ : MUL); break;
+
     case '/': 
-      add_token(match(lexer, '=') ? DIV : DIVEQ); break;
+      // single line comment 
+      if (match(lexer, '/')) {
+        while (peek(lexer, 1) != '\n' && !is_end(lexer)) advance(lexer);
+      }
+      // multi-line comment 
+      if (match(lexer, '*')) {
+        while (!(peek(lexer, 1) == '*' && peek(lexer,2) == '/') && !is_end(lexer)) {
+          advance(lexer);
+        }
+        
+        if (is_end(lexer)) error(lexer->line, "unterminated comment"); 
+        else advance(lexer); // move to the termination of the multi line comment
+      }
+      else if (match(lexer, '=')) add_token(lexer, DIVEQ);
+      else add_token(DIV);
+      break;
+
     case '%': 
       add_token(match(lexer, '=') ? MOD : MODEQ); break;
-      
-      
+
+    case '!': 
+      add_token(match(lexer, '=') ? NOT : NOTEQ); break;
+
+    case '&': 
+      add_token(match(lexer, '&') ? AMP : AND); break;
+
+    case '<': 
+      add_token(match(lexer, '=') ? LT : LTEQ); break;
+    
+    case '>': 
+      add_token(match(lexer, '=') ? GT : GTEQ); break;
+
+    case '=': 
+      add_token(match(lexer, '=') ? ASSIGN : EQ); break;
+
+    case '|':
+      add_token(match(lexer, '|') ? BWOR : OR); break;
+
+    // skip tabs, spaces, carriage returns and newlines
+    case ' ':
+    case '\t':
+    case '\r':
+      break;
+
+    case '\n': lexer->line += 1; break;
 
     default: error(lexer->line, "unexpected character."); break;
   }
