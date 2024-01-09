@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdbool.h>
 
 #define INITIAL_CAPACITY 100 // initial capacity of tokens array
@@ -20,10 +19,14 @@ void error(int line, char *msg) {
 }
 
 /* ============================== HELPERS ======================================
- *
+ * explcit ctype.h functions
  * ===========================================================================*/
- bool is_digit(char c) { return c >= '0' && c <= '9'; }
+bool is_digit(char c) { return c >= '0' && c <= '9'; }
+//bool is_digit(char c) { return (c ^ 0x30) < 0xA; }
 
+bool is_alpha(char c) { return ((c >= 'A' && c <= 'Z') ||
+                                   (c >= 'a' && c <= 'z')); }
+//bool is_alpha(char c) { return ((c ^ 0x40) - 1) < 0x5B; }
 
 /* ============================== TOKEN ========================================
  *
