@@ -28,6 +28,8 @@ bool is_alpha(char c) { return ((c >= 'A' && c <= 'Z') ||
                                    (c >= 'a' && c <= 'z')); }
 //bool is_alpha(char c) { return ((c ^ 0x40) - 1) < 0x5B; }
 
+bool is_alphanum(char c) { return is_digit(c) || is_alpha(c); }
+
 /* ============================== TOKEN ========================================
  *
  * ===========================================================================*/
@@ -281,7 +283,7 @@ void add_token(lexer_T *lexer, token_type_T t) {
   lexer->tokens_index += 1;
 }
 
-/* Overloaded functions handle literals */
+/* Overloaded functions add_token() functions */
 void add_token_str(lexer_T *lexer, token_type_T t, char *literal) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
@@ -315,6 +317,25 @@ void add_token_int(lexer_T *lexer, token_type_T t, int literal) {
 
   lexer->tokens_index += 1;
 }
+
+void add_token_identifier(lexer_T *lexer, token_type_T t, char *identifier) {
+  if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
+    if (!resize(lexer)) {
+      // TODO create seperate handle for internal errors (errors that aren't from the lexer)
+      perror("error: unable to resize token array");
+      exit(1);
+    }
+  }
+  
+  char buf[10];
+  sprintf(buf,"%d", literal);
+  lexer->tokens[lexer->tokens_index].type = t;
+  lexer->tokens[lexer->tokens_index].lexeme = buf;
+  lexer->tokens[lexer->tokens_index].line = lexer->line;
+
+  lexer->tokens_index += 1;
+}
+
 
 char peek(lexer_T *lexer, int offset) {
   if ((lexer->current + offset) >= lexer->src_len) return '\0';
@@ -371,10 +392,34 @@ void handle_numeric(lexer_T *lexer) {
   add_token_int(lexer, NUMERIC, res);
 }
 
+void handle_identifier(lexer_T *lexer) {
+  unsigned int i = 0;
+  char buf[MAX_BUFF_SIZE];
+
+  while (is_alphanum(peek(lexer,1)) && !is_end(lexer)) {
+    buf[i] = lexer->src[lexer->current];
+    i += 1;
+    advance(lexer);
+  }
+
+  advance(lexer); // move to termination of string
+  buf[i] = '\0';
+  
+
+  add_token_identifier(lexer, IDENTIFIER, buf);
+}
+
 void consume_token(lexer_T *lexer) {
   char c = advance(lexer);
 
   switch (c) {
+    // skip tabs, spaces, carriage returns and newlines
+    case ' ':
+    case '\t':
+    case '\r':
+      break;
+    case '\n': lexer->line += 1; break;
+
     // single char 
     case ';': add_token(lexer, SEMI); break;
     case ',': add_token(lexer, COMMA); break;
@@ -456,16 +501,13 @@ void consume_token(lexer_T *lexer) {
 
     // String literals
     case '"': handle_string(lexer); break;
+
     // Numeric literals
     case is_digit(c): handle_numeric(lexer); break;
+    
+    // Identifiers
+    case is_alpha(c): handle_identifier(lexer); break;
 
-    // skip tabs, spaces, carriage returns and newlines
-    case ' ':
-    case '\t':
-    case '\r':
-      break;
-
-    case '\n': lexer->line += 1; break;
 
     default: error(lexer->line, "unexpected character."); break;
   }
