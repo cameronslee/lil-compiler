@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #define INITIAL_CAPACITY 100 // initial capacity of tokens array
+#define MAX_BUFF_SIZE 10000
 bool had_error = false;
 bool lexer_at_end = false;
 
@@ -17,6 +18,12 @@ void error(int line, char *msg) {
   // TODO Halt Parser, enter panic mode
   had_error = true;
 }
+
+/* ============================== HELPERS ======================================
+ *
+ * ===========================================================================*/
+ bool is_digit(char c) { return c >= '0' && c <= '9'; }
+
 
 /* ============================== TOKEN ========================================
  *
@@ -244,9 +251,7 @@ bool resize(lexer_T *lexer) {
   return (lexer->tokens == NULL);
 }
 
-bool is_end(lexer_T *lexer) {
-  return lexer->current >= lexer->src_len;
-}
+bool is_end(lexer_T *lexer) { return lexer->current >= lexer->src_len; }
 
 char advance(lexer_T *lexer) {
   if (lexer->current < lexer->src_len && !is_end(lexer)) {
@@ -309,7 +314,7 @@ void add_token_int(lexer_T *lexer, token_type_T t, int literal) {
 }
 
 char peek(lexer_T *lexer, int offset) {
-  if ((lexer->current + offset) >= lexer->src_len) return -1;
+  if ((lexer->current + offset) >= lexer->src_len) return '\0';
   return lexer->src[lexer->current + offset];
 }
 
@@ -321,6 +326,31 @@ bool match(lexer_T *lexer, char expected) {
   return true;
 }
 
+void handle_string(lexer_T *lexer) {
+  unsigned int i = 0;
+  char buf[MAX_BUFF_SIZE];
+
+  while (peek(lexer,1) != '"' && !is_end(lexer)) {
+    if (peek(lexer,1) == '\n') lexer->line += 1;
+    buf[i] = lexer->src[lexer->current];
+    i++;
+    advance(lexer);
+  }
+
+  if (is_end(lexer)) {
+    error(lexer->line, "unterminated string");
+    return;
+  }
+
+  advance(lexer); // move to termination of string
+  buf[i] = '\0';
+
+  add_token_str(lexer, STRING, buf);
+}
+
+void handle_numeric(lexer_T *lexer) {
+
+}
 
 void consume_token(lexer_T *lexer) {
   char c = advance(lexer);
@@ -381,29 +411,34 @@ void consume_token(lexer_T *lexer) {
         else advance(lexer); // move to the termination of the multi line comment
       }
       else if (match(lexer, '=')) add_token(lexer, DIVEQ);
-      else add_token(DIV);
+      else add_token(lexer, DIV);
       break;
 
     case '%': 
-      add_token(match(lexer, '=') ? MOD : MODEQ); break;
+      add_token(lexer, match(lexer, '=') ? MOD : MODEQ); break;
 
     case '!': 
-      add_token(match(lexer, '=') ? NOT : NOTEQ); break;
+      add_token(lexer, match(lexer, '=') ? NOT : NOTEQ); break;
 
     case '&': 
-      add_token(match(lexer, '&') ? AMP : AND); break;
+      add_token(lexer, match(lexer, '&') ? AMP : AND); break;
 
     case '<': 
-      add_token(match(lexer, '=') ? LT : LTEQ); break;
+      add_token(lexer, match(lexer, '=') ? LT : LTEQ); break;
     
     case '>': 
-      add_token(match(lexer, '=') ? GT : GTEQ); break;
+      add_token(lexer, match(lexer, '=') ? GT : GTEQ); break;
 
     case '=': 
-      add_token(match(lexer, '=') ? ASSIGN : EQ); break;
+      add_token(lexer, match(lexer, '=') ? ASSIGN : EQ); break;
 
     case '|':
-      add_token(match(lexer, '|') ? BWOR : OR); break;
+      add_token(lexer, match(lexer, '|') ? BWOR : OR); break;
+
+    // String literals
+    case '"': handle_string(lexer); break;
+    // Numeric literals
+    case is_digit(c): handle_numeric(lexer); break;
 
     // skip tabs, spaces, carriage returns and newlines
     case ' ':
