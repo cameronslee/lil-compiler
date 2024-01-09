@@ -101,7 +101,7 @@ typedef enum {
   DEFAULT,                   /* default */
   RETURN,                    /* return */
   BREAK,                     /* break */
-  CONTIN,                    /* continue */
+  CONTINUE,                    /* continue */
   GOTO,                      /* goto */
   SIZEOF,                    /* sizeof */
   STRUCT,                    /* struct */
@@ -111,11 +111,43 @@ typedef enum {
 
   /* Misc */
   END,                       /* EOF */
-  IDENTIFIER, STRING, NUMBER, /* Literals */
+  IDENTIFIER,                /* Identifiers */
+  STRING, NUMBER,            /* Literals */
+  ERROR,                     /* Error, used for keyword lookup */
   
   // TODO support assembly level operations
   // TODO support bitwise operators
 } token_type_T;
+
+// TODO refactor with hashmap
+token_type_T get_token_keyword(char *c) {
+  switch (c):
+    case "int": return INT; 
+    case "unsigned": return UNSIGN; 
+    case "char": return CHAR; 
+    case "static": return STAT; 
+    case "extern": return EXTERN; 
+    case "const": return CONST; 
+    case "if": return if; 
+    case "else": return ELSE; 
+    case "while": return WHILE; 
+    case "do": return DO; 
+    case "for": return FOR; 
+    case "switch": return SWITCH; 
+    case "case": return CASE; 
+    case "default": return DEFAULT; 
+    case "return": return RETURN; 
+    case "break": return BREAK; 
+    case "continue": return CONTINUE; 
+    case "goto": return GOTO; 
+    case "sizeof": return SIZEOF; 
+    case "struct": return STRUCT; 
+    case "union": return UNION; 
+    case "void": return VOID; 
+    case "NULL": return NIL; 
+
+    default: return ERROR; 
+}
 
 char *get_token_name(token_type_T type) {
   switch (type) {
@@ -312,13 +344,13 @@ void add_token_int(lexer_T *lexer, token_type_T t, int literal) {
   char buf[10];
   sprintf(buf,"%d", literal);
   lexer->tokens[lexer->tokens_index].type = t;
-  lexer->tokens[lexer->tokens_index].lexeme = buf;
+  lexer->tokens[lexer->tokens_index].lexeme = literal; //FIXME this could be problematic with type
   lexer->tokens[lexer->tokens_index].line = lexer->line;
 
   lexer->tokens_index += 1;
 }
 
-void add_token_identifier(lexer_T *lexer, token_type_T t, char *identifier) {
+void add_token_keyword_or_identifier(lexer_T *lexer, token_type_T t, char *c) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
@@ -330,7 +362,7 @@ void add_token_identifier(lexer_T *lexer, token_type_T t, char *identifier) {
   char buf[10];
   sprintf(buf,"%d", literal);
   lexer->tokens[lexer->tokens_index].type = t;
-  lexer->tokens[lexer->tokens_index].lexeme = buf;
+  lexer->tokens[lexer->tokens_index].lexeme = c;
   lexer->tokens[lexer->tokens_index].line = lexer->line;
 
   lexer->tokens_index += 1;
@@ -392,7 +424,7 @@ void handle_numeric(lexer_T *lexer) {
   add_token_int(lexer, NUMERIC, res);
 }
 
-void handle_identifier(lexer_T *lexer) {
+void handle_keyword_or_identifier(lexer_T *lexer) {
   unsigned int i = 0;
   char buf[MAX_BUFF_SIZE];
 
@@ -405,8 +437,13 @@ void handle_identifier(lexer_T *lexer) {
   advance(lexer); // move to termination of string
   buf[i] = '\0';
   
+  token_type_T res;
+  if ((res = get_token_keyword(buf)) != ERROR) {
+    add_token_keyword_or_identifier(lexer, res, buf);
 
-  add_token_identifier(lexer, IDENTIFIER, buf);
+  }
+  
+  add_token_keyword_or_identifier(lexer, IDENTIFIER, buf);
 }
 
 void consume_token(lexer_T *lexer) {
@@ -505,9 +542,9 @@ void consume_token(lexer_T *lexer) {
     // Numeric literals
     case is_digit(c): handle_numeric(lexer); break;
     
-    // Identifiers
-    case is_alpha(c): handle_identifier(lexer); break;
-
+    case is_alpha(c):
+      // Keyword or Identifier
+      handle_keyword_or_identifier(lexer); break;
 
     default: error(lexer->line, "unexpected character."); break;
   }
