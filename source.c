@@ -333,7 +333,7 @@ void handle_string(lexer_T *lexer) {
   while (peek(lexer,1) != '"' && !is_end(lexer)) {
     if (peek(lexer,1) == '\n') lexer->line += 1;
     buf[i] = lexer->src[lexer->current];
-    i++;
+    i += 1;
     advance(lexer);
   }
 
@@ -348,8 +348,24 @@ void handle_string(lexer_T *lexer) {
   add_token_str(lexer, STRING, buf);
 }
 
+// FIXME Handle all numeric types. For now, just integers
 void handle_numeric(lexer_T *lexer) {
+  unsigned int i = 0;
+  char buf[MAX_BUFF_SIZE];
 
+  while (is_digit(peek(lexer,1)) && !is_end(lexer)) {
+    buf[i] = lexer->src[lexer->current];
+    i += 1;
+    advance(lexer);
+  }
+
+  advance(lexer); // move to termination of string
+  buf[i] = '\0';
+  
+  int res;
+  sprintf(buf, "%d", res);
+
+  add_token_int(lexer, NUMERIC, res);
 }
 
 void consume_token(lexer_T *lexer) {
