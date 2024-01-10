@@ -244,7 +244,7 @@ typedef struct {
   unsigned int line;
 } token_T;
 
-// TODO
+// TODO implement
 /*
 char *get_token_as_string(token_T token) {
   pass
@@ -496,7 +496,8 @@ void consume_token(lexer_T *lexer) {
 
     case '*': 
       add_token(lexer, match(lexer, '=') ? MULEQ : MUL); break;
-
+    
+    // TODO Handle nested comments
     case '/': 
       // single line comment 
       if (match(lexer, '/')) {
