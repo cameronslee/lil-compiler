@@ -231,7 +231,6 @@ char *get_token_name(token_type_T type) {
   }
 }
 
-
 typedef struct {
   token_type_T type;
   char *lexeme; 
@@ -324,9 +323,7 @@ void add_token(lexer_T *lexer, token_type_T t) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
-      perror("error: unable to resize token array, in add_token()");
-      printf("lexer->tokens_index %d\n", lexer->tokens_index);
-      printf("lexer->tokens_capacity%d\n", lexer->tokens_capacity);
+      perror("error: unable to resize token array");
       exit(1);
     }
   }
@@ -345,17 +342,19 @@ void add_token(lexer_T *lexer, token_type_T t) {
 }
 
 /* Overloaded functions add_token() functions */
-void add_token_str(lexer_T *lexer, token_type_T t, char *literal) {
+void add_token_str(lexer_T *lexer, token_type_T t, char *c) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
-      perror("error: unable to resize token array, in add_token_str()");
+      perror("error: unable to resize token array");
       exit(1);
     }
   }
 
   lexer->tokens[lexer->tokens_index].type = t;
-  lexer->tokens[lexer->tokens_index].lexeme = literal;
+  unsigned int s = strlen(c);
+  lexer->tokens[lexer->tokens_index].lexeme = malloc(sizeof(char) * s);
+  strncpy(lexer->tokens[lexer->tokens_index].lexeme, c, s);
   lexer->tokens[lexer->tokens_index].line = lexer->line;
 
   lexer->tokens_index += 1;
@@ -367,7 +366,7 @@ void add_token_int(lexer_T *lexer, token_type_T t, char *c) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
-      perror("error: unable to resize token array, in add_token_int()");
+      perror("error: unable to resize token array");
       exit(1);
     }
   }
@@ -423,7 +422,9 @@ void handle_string(lexer_T *lexer) {
   unsigned int i = 0;
   char buf[MAX_BUFF_SIZE];
 
-  while (peek(lexer,1) != '"' && !is_end(lexer)) {
+  advance(lexer); //skip first double quote
+
+  while (lexer->src[lexer->current] != '"' && !is_end(lexer)) {
     if (peek(lexer,1) == '\n') lexer->line += 1;
     buf[i] = lexer->src[lexer->current];
     i += 1;
@@ -587,7 +588,6 @@ void consume_token(lexer_T *lexer) {
     case '"': handle_string(lexer); break;
 
     default: 
-      printf("LEXER CURRENT: %c", lexer->src[lexer->current]); 
       error(lexer->line, "unexpected character."); break;
   }
 
@@ -596,8 +596,8 @@ void consume_token(lexer_T *lexer) {
 
 // Utility
 void print_tokens(lexer_T *lexer) {
-  for (int i = 0; i < lexer->tokens_index; i++) {
-    printf("%s\n", lexer->tokens[i].lexeme);
+  for (unsigned int i = 0; i < lexer->tokens_index; i++) {
+    printf("%s %s\n", get_token_name(lexer->tokens[i].type), lexer->tokens[i].lexeme);
   }
 }
 
