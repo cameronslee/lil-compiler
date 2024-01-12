@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #define INITIAL_CAPACITY 100 // initial capacity of tokens array
+#define MAX_LEXEME_SIZE 50
 #define MAX_BUFF_SIZE 10000
 #define KEYWORDS 22 // number of keywords, used for reserved word lookup
 bool had_error = false;
@@ -331,6 +332,12 @@ void add_token(lexer_T *lexer, token_type_T t) {
   }
 
   lexer->tokens[lexer->tokens_index].type = t;
+
+  char *c = get_token_name(t);
+  unsigned int s = strlen(c);
+  lexer->tokens[lexer->tokens_index].lexeme = malloc(sizeof(char) * s);
+  strncpy(lexer->tokens[lexer->tokens_index].lexeme, c, s);
+
   lexer->tokens[lexer->tokens_index].lexeme = get_token_name(t);
   lexer->tokens[lexer->tokens_index].line = lexer->line;
 
@@ -356,7 +363,7 @@ void add_token_str(lexer_T *lexer, token_type_T t, char *literal) {
 
 // TODO the two functions below can be consildated with a flag for typing
 // TODO This would call for a refactor of token_T
-void add_token_int(lexer_T *lexer, token_type_T t, int literal) {
+void add_token_int(lexer_T *lexer, token_type_T t, char *c) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
@@ -365,10 +372,12 @@ void add_token_int(lexer_T *lexer, token_type_T t, int literal) {
     }
   }
   
-  char buf[10];
-  sprintf(buf,"%d", literal);
   lexer->tokens[lexer->tokens_index].type = t;
-  lexer->tokens[lexer->tokens_index].lexeme = buf; //TODO distinguish typing
+
+  unsigned int s = strlen(c);
+  lexer->tokens[lexer->tokens_index].lexeme = malloc(sizeof(char) * s);
+  strncpy(lexer->tokens[lexer->tokens_index].lexeme, c, s);
+
   lexer->tokens[lexer->tokens_index].line = lexer->line;
 
   lexer->tokens_index += 1;
@@ -384,7 +393,11 @@ void add_token_keyword_or_identifier(lexer_T *lexer, token_type_T t, char *c) {
   }
   
   lexer->tokens[lexer->tokens_index].type = t;
-  lexer->tokens[lexer->tokens_index].lexeme = c;
+
+  unsigned int s = strlen(c);
+  lexer->tokens[lexer->tokens_index].lexeme = malloc(sizeof(char) * s);
+  strncpy(lexer->tokens[lexer->tokens_index].lexeme, c, s);
+
   lexer->tokens[lexer->tokens_index].line = lexer->line;
 
   lexer->tokens_index += 1;
@@ -422,7 +435,6 @@ void handle_string(lexer_T *lexer) {
     return;
   }
 
-  advance(lexer); // move to termination of string
   buf[i] = '\0';
 
   add_token_str(lexer, STRING, buf);
@@ -433,19 +445,15 @@ void handle_numeric(lexer_T *lexer) {
   unsigned int i = 0;
   char buf[MAX_BUFF_SIZE];
 
-  while (is_digit(peek(lexer,1)) && !is_end(lexer)) {
+  while (is_digit(lexer->src[lexer->current]) && !is_end(lexer)) {
     buf[i] = lexer->src[lexer->current];
     i += 1;
     advance(lexer);
   }
 
-  advance(lexer); // move to termination of string
   buf[i] = '\0';
-  
-  int res = 42069; //FIXME temp error 
-  sprintf(buf, "%d", res);
 
-  add_token_int(lexer, NUMBER, res);
+  add_token_int(lexer, NUMBER, buf);
 }
 
 void handle_keyword_or_identifier(lexer_T *lexer) {
@@ -460,8 +468,6 @@ void handle_keyword_or_identifier(lexer_T *lexer) {
 
   buf[i] = '\0';
 
-  printf("IN handle_keyword_or_identifier %s\n", buf); 
-  
   token_type_T res;
   
   if ((res = get_token_keyword(lexer, buf)) != ERROR) {
@@ -588,6 +594,13 @@ void consume_token(lexer_T *lexer) {
   advance(lexer);
 }
 
+// Utility
+void print_tokens(lexer_T *lexer) {
+  for (int i = 0; i < lexer->tokens_index; i++) {
+    printf("%s\n", lexer->tokens[i].lexeme);
+  }
+}
+
 // tokens are added to lexer
 void scan_tokens(lexer_T *lexer) {
   while (!is_end(lexer)) {
@@ -597,12 +610,6 @@ void scan_tokens(lexer_T *lexer) {
   add_token(lexer, END);
 }
 
-// Utility
-void print_tokens(lexer_T *lexer) {
-  for (int i = 0; i < lexer->tokens_index; i++) {
-    printf("%s\n", lexer->tokens[i].lexeme);
-  }
-}
 
 /* ============================== PARSER =======================================
  *
