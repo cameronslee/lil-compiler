@@ -6,6 +6,7 @@
 
 #define INITIAL_CAPACITY 100 // initial capacity of tokens array
 #define MAX_BUFF_SIZE 10000
+#define KEYWORDS 22 // number of keywords, used for reserved word lookup
 bool had_error = false;
 bool lexer_at_end = false;
 
@@ -29,6 +30,24 @@ bool is_alpha(char c) { return ((c >= 'A' && c <= 'Z') ||
 //bool is_alpha(char c) { return ((c ^ 0x40) - 1) < 0x5B; }
 
 bool is_alphanum(char c) { return is_digit(c) || is_alpha(c); }
+
+size_t get_file_size(FILE *f) {
+  size_t file_size;
+  if (fseek(f, 0, SEEK_END) != 0 ) exit(EXIT_FAILURE); 
+
+  file_size = ftell(f);
+  rewind(f);
+  return file_size;
+}
+
+void read_file(FILE * f, char *buffer, size_t file_size) {
+  if (file_size == 1) exit(EXIT_FAILURE);
+
+  fread(buffer, 1, file_size, f);
+  if (buffer == NULL) exit(EXIT_FAILURE);
+
+  fclose(f); 
+}
 
 /* ============================== TOKEN ========================================
  *
@@ -73,10 +92,10 @@ typedef enum {
   AND,                       /* && */
   
   LT,                        /* < */
-  LE,                        /* <= */
+  LTEQ,                        /* <= */
 
   GT,                        /* > */
-  GE,                        /* >= */
+  GTEQ,                        /* >= */
 
   ASSIGN,                    /* = */
   EQ,                        /* == */
@@ -120,35 +139,6 @@ typedef enum {
 } token_type_T;
 
 // TODO refactor with hashmap
-token_type_T get_token_keyword(char *c) {
-  switch (c):
-    case "int": return INT; 
-    case "unsigned": return UNSIGN; 
-    case "char": return CHAR; 
-    case "static": return STAT; 
-    case "extern": return EXTERN; 
-    case "const": return CONST; 
-    case "if": return if; 
-    case "else": return ELSE; 
-    case "while": return WHILE; 
-    case "do": return DO; 
-    case "for": return FOR; 
-    case "switch": return SWITCH; 
-    case "case": return CASE; 
-    case "default": return DEFAULT; 
-    case "return": return RETURN; 
-    case "break": return BREAK; 
-    case "continue": return CONTINUE; 
-    case "goto": return GOTO; 
-    case "sizeof": return SIZEOF; 
-    case "struct": return STRUCT; 
-    case "union": return UNION; 
-    case "void": return VOID; 
-    case "NULL": return NIL; 
-
-    default: return ERROR; 
-}
-
 char *get_token_name(token_type_T type) {
   switch (type) {
   /* Single Character Tokens */
@@ -187,10 +177,11 @@ char *get_token_name(token_type_T type) {
   case AMP: return "AMP";
   case AND: return "AND";
 
-  case LE: return "LE";
-  case GE: return "GE";
   case LT: return "LT";
+  case LTEQ: return "LTEQ";
+
   case GT: return "GT";
+  case GTEQ: return "GTEQ";
 
   case ASSIGN: return "ASSIGN";
   case EQ: return "EQ";
@@ -202,40 +193,43 @@ char *get_token_name(token_type_T type) {
   case OR: return "OR";
 
   /* Keywords */
-  case INT: return "INT";
-  case UNSIGN: return "UNSIGN";
-  case CHAR: return "CHAR";
-  case STAT: return "STAT";
-  case EXTERN: return "EXTERN";
-  case CONST: return "CONST";
-  case IF: return "IF";
-  case ELSE: return "ELSE";
-  case WHILE: return "WHILE";
-  case DO: return "DO";
-  case FOR: return "FOR";
-  case SWITCH: return "SWITCH";
-  case CASE: return "CASE";
-  case DEFAULT: return "DEFAULT";
-  case RETURN: return "RETURN";
-  case BREAK: return "BREAK";
-  case CONTIN: return "CONTIN";
-  case GOTO: return "GOTO";
-  case SIZEOF: return "SIZEOF";
-  case STRUCT: return "STRUCT";
-  case UNION: return "UNION";
-  case VOID: return "VOID";
-  case NIL: return "NIL";
+  case INT: return "int";
+  case UNSIGN: return "unsigned";
+  case CHAR: return "char";
+  case STAT: return "static";
+  case EXTERN: return "extern";
+  case CONST: return "const";
+  case IF: return "if";
+  case ELSE: return "if";
+  case WHILE: return "while";
+  case DO: return "do";
+  case FOR: return "for";
+  case SWITCH: return "switch";
+  case CASE: return "case";
+  case DEFAULT: return "default";
+  case RETURN: return "return";
+  case BREAK: return "break";
+  case CONTINUE: return "continue";
+  case GOTO: return "goto";
+  case SIZEOF: return "sizeof";
+  case STRUCT: return "struct";
+  case UNION: return "union";
+  case VOID: return "void";
+  case NIL: return "NULL";
 
   /* Misc */
   case END: return "END";
   case IDENTIFIER: return "IDENTIFIER";
   case STRING: return "STRING";
   case NUMBER: return "NUMBER";
+  case ERROR: return "ERROR";
   
   // TODO support assembly level operations
   // TODO support bitwise operators
+  
   }
 }
+
 
 typedef struct {
   token_type_T type;
@@ -243,13 +237,6 @@ typedef struct {
   // TODO add overloadable literal ? might help during runtime
   unsigned int line;
 } token_T;
-
-// TODO implement
-/*
-char *get_token_as_string(token_T token) {
-  pass
-}
-*/
 
 /* ============================== LEXER ========================================
  *
@@ -264,7 +251,24 @@ typedef struct {
   token_T *tokens;
   unsigned int tokens_index;
   unsigned int tokens_capacity;
+
+  token_T *keywords;
+  unsigned int keywords_capacity;
+  unsigned int keyword_index;
 } lexer_T;
+
+
+bool load_keyword_lookup_table(lexer_T *lexer) {
+  for (int i = INT; i <= NIL; i++) {
+    char *curr= get_token_name(i);
+    lexer->keywords[lexer->keyword_index].type = i;
+    lexer->keywords[lexer->keyword_index].lexeme = curr;
+    lexer->keywords[lexer->keyword_index].line = 0;
+    lexer->keyword_index += 1;
+  }
+
+  return true;
+}
 
 lexer_T * init_lexer(char *src, size_t len) {
   lexer_T * lexer = calloc(1, sizeof(lexer_T));
@@ -279,7 +283,23 @@ lexer_T * init_lexer(char *src, size_t len) {
   lexer->tokens = malloc(sizeof(token_T) * lexer->tokens_capacity); 
   lexer->tokens_index = 0;
 
+  lexer->keywords_capacity = KEYWORDS;
+  lexer->keywords = malloc(sizeof(token_T) * lexer->keywords_capacity); 
+  lexer->keyword_index = 0;
+  if (!load_keyword_lookup_table(lexer)) {
+      perror("error: unable to load keyword table");
+      exit(1);
+  }
+
   return lexer;
+}
+
+token_type_T get_token_keyword(lexer_T *lexer, char *buf) {
+  for (unsigned int i = 0; i < lexer->keyword_index; i++) {
+    if (strcmp(lexer->keywords[i].lexeme, buf) == 0) return lexer->keywords[i].type;
+  }
+
+  return ERROR;
 }
 
 bool resize(lexer_T *lexer) {
@@ -303,7 +323,9 @@ void add_token(lexer_T *lexer, token_type_T t) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
-      perror("error: unable to resize token array");
+      perror("error: unable to resize token array, in add_token()");
+      printf("lexer->tokens_index %d\n", lexer->tokens_index);
+      printf("lexer->tokens_capacity%d\n", lexer->tokens_capacity);
       exit(1);
     }
   }
@@ -320,7 +342,7 @@ void add_token_str(lexer_T *lexer, token_type_T t, char *literal) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
-      perror("error: unable to resize token array");
+      perror("error: unable to resize token array, in add_token_str()");
       exit(1);
     }
   }
@@ -332,11 +354,13 @@ void add_token_str(lexer_T *lexer, token_type_T t, char *literal) {
   lexer->tokens_index += 1;
 }
 
+// TODO the two functions below can be consildated with a flag for typing
+// TODO This would call for a refactor of token_T
 void add_token_int(lexer_T *lexer, token_type_T t, int literal) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
-      perror("error: unable to resize token array");
+      perror("error: unable to resize token array, in add_token_int()");
       exit(1);
     }
   }
@@ -344,7 +368,7 @@ void add_token_int(lexer_T *lexer, token_type_T t, int literal) {
   char buf[10];
   sprintf(buf,"%d", literal);
   lexer->tokens[lexer->tokens_index].type = t;
-  lexer->tokens[lexer->tokens_index].lexeme = literal; //FIXME this could be problematic with type
+  lexer->tokens[lexer->tokens_index].lexeme = buf; //TODO distinguish typing
   lexer->tokens[lexer->tokens_index].line = lexer->line;
 
   lexer->tokens_index += 1;
@@ -359,15 +383,12 @@ void add_token_keyword_or_identifier(lexer_T *lexer, token_type_T t, char *c) {
     }
   }
   
-  char buf[10];
-  sprintf(buf,"%d", literal);
   lexer->tokens[lexer->tokens_index].type = t;
   lexer->tokens[lexer->tokens_index].lexeme = c;
   lexer->tokens[lexer->tokens_index].line = lexer->line;
 
   lexer->tokens_index += 1;
 }
-
 
 char peek(lexer_T *lexer, int offset) {
   if ((lexer->current + offset) >= lexer->src_len) return '\0';
@@ -376,9 +397,12 @@ char peek(lexer_T *lexer, int offset) {
 
 bool match(lexer_T *lexer, char expected) {
   if (is_end(lexer)) return false;
-  if (peek(lexer, 1) != expected) return false;
+  if (peek(lexer, 1) != expected) {
+    return false;
+  }
 
   advance(lexer);
+
   return true;
 }
 
@@ -418,36 +442,50 @@ void handle_numeric(lexer_T *lexer) {
   advance(lexer); // move to termination of string
   buf[i] = '\0';
   
-  int res;
+  int res = 42069; //FIXME temp error 
   sprintf(buf, "%d", res);
 
-  add_token_int(lexer, NUMERIC, res);
+  add_token_int(lexer, NUMBER, res);
 }
 
 void handle_keyword_or_identifier(lexer_T *lexer) {
   unsigned int i = 0;
   char buf[MAX_BUFF_SIZE];
 
-  while (is_alphanum(peek(lexer,1)) && !is_end(lexer)) {
+  while (is_alphanum(lexer->src[lexer->current]) && !is_end(lexer)) {
     buf[i] = lexer->src[lexer->current];
     i += 1;
     advance(lexer);
   }
 
-  advance(lexer); // move to termination of string
   buf[i] = '\0';
+
+  printf("IN handle_keyword_or_identifier %s\n", buf); 
   
   token_type_T res;
-  if ((res = get_token_keyword(buf)) != ERROR) {
+  
+  if ((res = get_token_keyword(lexer, buf)) != ERROR) {
     add_token_keyword_or_identifier(lexer, res, buf);
-
+    return;
   }
   
   add_token_keyword_or_identifier(lexer, IDENTIFIER, buf);
 }
 
 void consume_token(lexer_T *lexer) {
-  char c = advance(lexer);
+  char c = lexer->src[lexer->current];
+
+  // Keyword or Identifier
+  if (is_alpha(c)) {
+    handle_keyword_or_identifier(lexer);
+    return;
+  }
+
+  // Numeric literals
+  if (is_digit(c)) {
+    handle_numeric(lexer);
+    return;
+  }
 
   switch (c) {
     // skip tabs, spaces, carriage returns and newlines
@@ -532,7 +570,9 @@ void consume_token(lexer_T *lexer) {
       add_token(lexer, match(lexer, '=') ? GT : GTEQ); break;
 
     case '=': 
-      add_token(lexer, match(lexer, '=') ? ASSIGN : EQ); break;
+      if (match(lexer, '=')) add_token(lexer, ASSIGN);
+      else add_token(lexer, EQ);
+      break;
 
     case '|':
       add_token(lexer, match(lexer, '|') ? BWOR : OR); break;
@@ -540,15 +580,12 @@ void consume_token(lexer_T *lexer) {
     // String literals
     case '"': handle_string(lexer); break;
 
-    // Numeric literals
-    case is_digit(c): handle_numeric(lexer); break;
-    
-    case is_alpha(c):
-      // Keyword or Identifier
-      handle_keyword_or_identifier(lexer); break;
-
-    default: error(lexer->line, "unexpected character."); break;
+    default: 
+      printf("LEXER CURRENT: %c", lexer->src[lexer->current]); 
+      error(lexer->line, "unexpected character."); break;
   }
+
+  advance(lexer);
 }
 
 // tokens are added to lexer
@@ -560,6 +597,13 @@ void scan_tokens(lexer_T *lexer) {
   add_token(lexer, END);
 }
 
+// Utility
+void print_tokens(lexer_T *lexer) {
+  for (int i = 0; i < lexer->tokens_index; i++) {
+    printf("%s\n", lexer->tokens[i].lexeme);
+  }
+}
+
 /* ============================== PARSER =======================================
  *
  * ===========================================================================*/
@@ -569,23 +613,6 @@ void scan_tokens(lexer_T *lexer) {
 /* ============================== DRIVER =======================================
  *
  * ===========================================================================*/
-size_t get_file_size(FILE *f) {
-  size_t file_size;
-  if (fseek(f, 0, SEEK_END) != 0 ) exit(EXIT_FAILURE); 
-
-  file_size = ftell(f);
-  rewind(f);
-  return file_size;
-}
-
-void read_file(FILE * f, char *buffer, size_t file_size) {
-  if (file_size == 1) exit(EXIT_FAILURE);
-
-  fread(buffer, 1, file_size, f);
-  if (buffer == NULL) exit(EXIT_FAILURE);
-
-  fclose(f); 
-}
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -604,7 +631,11 @@ int main(int argc, char **argv) {
 
   read_file(f, buffer, file_size);
 
-  printf(buffer);
+  lexer_T *lexer = init_lexer(buffer, file_size);
 
-  printf("%s\n", buffer); 
+  printf("%s\n", buffer);
+
+  scan_tokens(lexer);
+
+  print_tokens(lexer);
 }
