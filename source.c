@@ -341,48 +341,7 @@ void add_token(lexer_T *lexer, token_type_T t) {
   lexer->tokens_index += 1;
 }
 
-/* Overloaded functions add_token() functions */
-void add_token_str(lexer_T *lexer, token_type_T t, char *c) {
-  if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
-    if (!resize(lexer)) {
-      // TODO create seperate handle for internal errors (errors that aren't from the lexer)
-      perror("error: unable to resize token array");
-      exit(1);
-    }
-  }
-
-  lexer->tokens[lexer->tokens_index].type = t;
-  unsigned int s = strlen(c);
-  lexer->tokens[lexer->tokens_index].lexeme = malloc(sizeof(char) * s);
-  strncpy(lexer->tokens[lexer->tokens_index].lexeme, c, s);
-  lexer->tokens[lexer->tokens_index].line = lexer->line;
-
-  lexer->tokens_index += 1;
-}
-
-// TODO the two functions below can be consildated with a flag for typing
-// TODO This would call for a refactor of token_T
-void add_token_int(lexer_T *lexer, token_type_T t, char *c) {
-  if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
-    if (!resize(lexer)) {
-      // TODO create seperate handle for internal errors (errors that aren't from the lexer)
-      perror("error: unable to resize token array");
-      exit(1);
-    }
-  }
-  
-  lexer->tokens[lexer->tokens_index].type = t;
-
-  unsigned int s = strlen(c);
-  lexer->tokens[lexer->tokens_index].lexeme = malloc(sizeof(char) * s);
-  strncpy(lexer->tokens[lexer->tokens_index].lexeme, c, s);
-
-  lexer->tokens[lexer->tokens_index].line = lexer->line;
-
-  lexer->tokens_index += 1;
-}
-
-void add_token_keyword_or_identifier(lexer_T *lexer, token_type_T t, char *c) {
+void add_token_keyword_identifier_literal(lexer_T *lexer, token_type_T t, char *c) {
   if (lexer->tokens_index + 1 > lexer->tokens_capacity) {
     if (!resize(lexer)) {
       // TODO create seperate handle for internal errors (errors that aren't from the lexer)
@@ -438,7 +397,7 @@ void handle_string(lexer_T *lexer) {
 
   buf[i] = '\0';
 
-  add_token_str(lexer, STRING, buf);
+  add_token_keyword_identifier_literal(lexer, STRING, buf);
 }
 
 // FIXME Handle all numeric types. For now, just integers
@@ -454,7 +413,7 @@ void handle_numeric(lexer_T *lexer) {
 
   buf[i] = '\0';
 
-  add_token_int(lexer, NUMBER, buf);
+  add_token_keyword_identifier_literal(lexer, NUMBER, buf);
 }
 
 void handle_keyword_or_identifier(lexer_T *lexer) {
@@ -472,11 +431,11 @@ void handle_keyword_or_identifier(lexer_T *lexer) {
   token_type_T res;
   
   if ((res = get_token_keyword(lexer, buf)) != ERROR) {
-    add_token_keyword_or_identifier(lexer, res, buf);
+    add_token_keyword_identifier_literal(lexer, res, buf);
     return;
   }
   
-  add_token_keyword_or_identifier(lexer, IDENTIFIER, buf);
+  add_token_keyword_identifier_literal(lexer, IDENTIFIER, buf);
 }
 
 void consume_token(lexer_T *lexer) {
