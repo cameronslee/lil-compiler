@@ -573,8 +573,43 @@ void scan_tokens(lexer_T *lexer) {
 /* ============================== PARSER =======================================
  *
  * ===========================================================================*/
-  // pass
 
+/*
+<unary-expression> ::= <postfix-expression>
+                     | ++ <unary-expression>
+                     | -- <unary-expression>
+                     | <unary-operator> <cast-expression>
+                     | sizeof <unary-expression>
+                     | sizeof <type-name>
+*/
+
+typedef struct {
+  token_T *operator;
+  void *operand;
+} unary_exp_T;
+
+typedef struct {
+  void *operand_left;
+  token_T *operator;
+  void *operand_right;
+} binary_exp_T;
+
+unary_exp_T *unary_expression(token_T *op, void *oper) {
+  unary_exp_T *exp = malloc(sizeof(unary_exp_T)); 
+  exp->operator = op;
+  exp->operand = oper;
+
+  return exp;
+}
+
+typedef struct {
+  lexer_T *lexer;
+  ast_node_T *ast;
+} parser_T;
+
+void parse(parser_T *parser) { 
+
+}
 
 /* ============================== DRIVER =======================================
  *
