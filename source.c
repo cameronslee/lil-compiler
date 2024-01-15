@@ -8,6 +8,9 @@
 #define MAX_LEXEME_SIZE 50
 #define MAX_BUFF_SIZE 10000
 #define KEYWORDS 22 // number of keywords, used for reserved word lookup
+
+#define INITIAL_ROOT_CAPACITY 50 // initial capacity for nodes in translation unit
+
 bool had_error = false;
 bool lexer_at_end = false;
 
@@ -16,6 +19,7 @@ bool lexer_at_end = false;
  * ===========================================================================*/
 void error(int line, char *msg) {
   printf("line %d | error: %s\n", line, msg);
+
   // TODO Halt Parser, enter panic mode
   had_error = true;
 }
@@ -588,11 +592,6 @@ typedef struct {
   void *operand;
 } unary_exp_T;
 
-typedef struct {
-  void *operand_left;
-  token_T *operator;
-  void *operand_right;
-} binary_exp_T;
 
 unary_exp_T *unary_expression(token_T *op, void *oper) {
   unary_exp_T *exp = malloc(sizeof(unary_exp_T)); 
@@ -603,12 +602,112 @@ unary_exp_T *unary_expression(token_T *op, void *oper) {
 }
 
 typedef struct {
+  void *operand_left;
+  token_T *operator;
+  void *operand_right;
+} binary_exp_T;
+
+binary_exp_T *binary_expression(void *oper_left, token_T *op, void *oper_right) {
+  binary_exp_T *exp = malloc(sizeof(binary_exp_T)); 
+  exp->operand_left = oper_left;
+  exp->operator = op;
+  exp->operand_right = oper_right;
+
+  return exp;
+}
+
+union expr {
+  binary_exp_T binary_exp;
+  unary_exp_T unary_exp;
+};
+
+typedef enum {
+  UNARY_EXPR,
+  BINARY_EXPR,
+} expr_type_T;
+
+typedef struct {
+  expr_type_T type;
+  union expr expr;
+} expr_T;
+
+/* Translation Unit */
+typedef struct {
+  expr_T *nodes; // FIXME this needs to be refactored to <external-declarations>
+  unsigned int size;
+  unsigned int index;
+} ast_root_T;
+
+ast_root_T *init_root() {
+  ast_root_T *root = malloc(sizeof(ast_root_T));
+
+  // FIXME this needs to be refactored to <external-declarations>
+  root->nodes = malloc(sizeof(expr_T) * INITIAL_ROOT_CAPACITY);
+  root->size = 0;
+  root->index = 0;
+
+  return root;
+}
+
+typedef struct {
   lexer_T *lexer;
-  ast_node_T *ast;
+  unsigned int curr_token;
+  unsigned int num_tokens;
+  ast_root_T *ast; // top level node
 } parser_T;
 
-void parse(parser_T *parser) { 
+void *parse(parser_T *parser); // FD
 
+bool parser_advance(parser_T *parser) {
+  if (parser->curr_token < parser->num_tokens) {
+    parser->curr_token += 1;  
+    return true;
+  }
+  
+  return false;
+}
+
+unary_exp_T *parse_unary_expression(parser_T *parser, token_T *t) {
+  token_T *op = t;
+
+  void *oper = parse(parser);
+
+  return unary_expression(op, oper);
+}
+
+parser_T *init_parser(lexer_T *lexer) {
+  parser_T *parser = malloc(sizeof(parser_T));
+
+  parser->lexer = lexer;
+  parser->curr_token = 0;
+  parser->num_tokens = lexer->tokens_index;
+  parser->ast = malloc(sizeof(ast_root_T));
+
+  parser->ast = init_root();
+
+  if (parser->ast == NULL) {
+    perror("error: could not initialize AST");
+    exit(1);
+  }
+
+  return parser;
+}
+
+void *parse(parser_T *parser) { 
+  //pass
+  token_T *curr = &parser->lexer->tokens[parser->curr_token];
+  expr_T *res; 
+  /* Unary Expression Handle */
+  //Prefix Ops
+  if (curr->type == INC)  {
+    res = parse_unary_expression(parser, curr);
+  }
+
+  parser->ast[parser->curr_token] = res;
+
+  parser->curr_token += 1;
+
+  return res;
 }
 
 /* ============================== DRIVER =======================================
@@ -632,6 +731,7 @@ int main(int argc, char **argv) {
 
   read_file(f, buffer, file_size);
 
+  /* Lexer Entry Point */
   lexer_T *lexer = init_lexer(buffer, file_size);
 
   printf("%s\n", buffer);
@@ -639,4 +739,11 @@ int main(int argc, char **argv) {
   scan_tokens(lexer);
 
   print_tokens(lexer);
+
+  /* Parser Entry Point */
+  parser_T *parser = init_parser(lexer);
+
+  parse(parser);
+
+  return 0;
 }

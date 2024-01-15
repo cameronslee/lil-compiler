@@ -2,9 +2,6 @@
 Will start with a batch processing design.
 
 
-
-
-
 ## Batch processing
 - GCC like
 
