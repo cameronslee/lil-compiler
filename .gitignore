@@ -59,6 +59,7 @@ dkms.conf
 notes
 test.c
 test2.c
+test3.c
 
 # Build it yourself fool
 source

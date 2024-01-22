@@ -537,8 +537,8 @@ void consume_token(lexer_T *lexer) {
       add_token(lexer, match(lexer, '=') ? GT : GTEQ); break;
 
     case '=': 
-      if (match(lexer, '=')) add_token(lexer, ASSIGN);
-      else add_token(lexer, EQ);
+      if (match(lexer, '=')) add_token(lexer, EQ);
+      else add_token(lexer, ASSIGN);
       break;
 
     case '|':
@@ -576,59 +576,172 @@ void scan_tokens(lexer_T *lexer) {
  * ===========================================================================*/
 
 typedef enum {
+  TRANSLATION_UNIT,
   UNARY,
   BINARY,
+  TERMINAL,
+  VAR_DECL, 
 } node_type_T;
 
 typedef struct node_T node_T;
 
+// Translation Unit
 struct node_T {
-  node_type_T;
+  node_type_T type;
+
   node_T *children;
   unsigned int num_children;
   token_T token;
+};
+
+// For now, this will be used as nodes with no children...
+// TERMINAL NODE
+node_T *new_node(node_type_T type, token_T token) {
+  node_T *n = malloc(sizeof(node_T));
+  n->type = type;
+  n->token = token;
+
+  return n;
+}
+
+void append_children(node_T *root, node_T *new_node) {
+  root->children[root->num_children++] = *new_node;
 }
 
 typedef struct {
   token_T *tokens;
-  unsigned int curr;
+  unsigned int num_tokens;
+  unsigned int current;
 
   node_T *ast;
+
 } parser_T;
 
-void *parse(parser_T *parser); // FD
+bool is_end_parser(parser_T *parser) { 
+  return parser->tokens[parser->current].type == END || 
+         parser->current >= parser->num_tokens;
+}
+
+token_type_T parser_peek(parser_T *parser, int offset) {
+  if (parser->current + offset >= parser->num_tokens) return ERROR;
+
+  return parser->tokens[parser->current + offset].type;
+}
+
+bool parser_advance(parser_T *parser) {
+  if (!is_end_parser(parser)) {
+    parser->current += 1; 
+    return true;
+  }
+
+  return false;
+}
+
+node_T *parse(parser_T *parser); // FD
 
 parser_T *init_parser(lexer_T *lexer) {
   parser_T *parser = malloc(sizeof(parser_T));
-
   parser->tokens = lexer->tokens;
-  parser->curr = 0;
+  parser->num_tokens = lexer->tokens_index;
+  parser->current = 0;
+  parser->ast = malloc(sizeof(node_T));
 
-  parser->ast = malloc(sizeof(node_T) * lexer->tokens_index);
+  // set up root node
+  parser->ast->type = TRANSLATION_UNIT;
+  parser->ast->children = malloc(sizeof(node_T) * parser->num_tokens);
+  parser->ast->num_children = 0;
 
   return parser;
 }
 
-node_T *parse(parser_T *parser) { 
-  token_T curr = parser->tokens[parser->curr];
+node_T *parse_decl(parser_T *parser) {
+  node_T *n = malloc(sizeof(node_T));
   
-  switch (curr->type) {
+  // determine if func decl or var decl
+  token_type_T temp = parser_peek(parser, 2);
+
+  /* Function Declaration */
+  if (temp == OP) {
+    // TODO 
+
+  }
+  /* Variable Declaration */
+  else if (temp == ASSIGN) {
+    n->type = VAR_DECL;
+    n->children = malloc(sizeof(node_T) * 3);
+    n->children[n->num_children++] = *new_node(TERMINAL, parser->tokens[parser->current]);
+    parser_advance(parser);
+
+    n->children[n->num_children++] = *parse(parser);
+    parse(parser); // pass ASSIGN
+    n->children[n->num_children++] = *parse(parser);
+    parse(parser); // pass SEMI 
+  }
+  
+  return n;
+}
+
+node_T *parse(parser_T *parser) { 
+  token_T curr = parser->tokens[parser->current];
+  
+  switch (curr.type) {
+    /* Handle Terminals */
+    case IDENTIFIER:
+    case SEMI:
+    case ASSIGN:
+    case NUMBER:
+    case STRING:
+      parser_advance(parser);
+      return new_node(TERMINAL, curr);
+
     case INT:
 		case UNSIGN:	
 		case CHAR:		
 		case STAT:		
 		case EXTERN:	
 		case CONST:		
-		case REGIS:		
 		case STRUCT:	
 		case UNION:		
 		case VOID :		
 			return parse_decl(parser);
 
-    default :
+    default:
       printf("%s\n", "error: parser");
       exit(1);
   }
+}
+
+void run_parser(parser_T *parser) {
+  while (!is_end_parser(parser)) {
+    append_children(parser->ast, parse(parser));
+  }
+}
+
+void print_ast(node_T *root, int depth) {
+  if (root == NULL) return;
+  
+  for (int i = 0; i < depth; i++) printf("  ");
+
+  if (root->type == TRANSLATION_UNIT) {
+    printf("TRANSLATION UNIT\n");
+  }
+  else if (root->type == VAR_DECL) {
+    printf("VAR DECL\n");
+  }
+  else {
+    printf("%s\n", root->token.lexeme);
+  }
+
+
+  if (root->type == TERMINAL) {
+    //printf("TERMINAL\n");
+  }
+  else {
+    for (int i = 0; i < root->num_children; i++) {
+      print_ast(&root->children[i], depth+1);
+    }
+  }
+
 }
 
 /* ============================== DRIVER =======================================
@@ -664,7 +777,12 @@ int main(int argc, char **argv) {
   /* Parser Entry Point */
   parser_T *parser = init_parser(lexer);
 
-  parse(parser);
+  run_parser(parser);
+
+  
+  printf("\nAST REPR\n");
+
+  print_ast(parser->ast, 0);
 
   return 0;
 }
