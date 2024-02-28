@@ -1,20 +1,26 @@
- __        __  __         ______                                     __  __                     
-/  |      /  |/  |       /      \                                   /  |/  |                    
-$$ |      $$/ $$ |      /$$$$$$  |  ______   _____  ____    ______  $$/ $$ |  ______    ______  
-$$ |      /  |$$ |      $$ |  $$/  /      \ /     \/    \  /      \ /  |$$ | /      \  /      \ 
-$$ |      $$ |$$ |      $$ |      /$$$$$$  |$$$$$$ $$$$  |/$$$$$$  |$$ |$$ |/$$$$$$  |/$$$$$$  |
-$$ |      $$ |$$ |      $$ |   __ $$ |  $$ |$$ | $$ | $$ |$$ |  $$ |$$ |$$ |$$    $$ |$$ |  $$/ 
-$$ |_____ $$ |$$ |      $$ \__/  |$$ \__$$ |$$ | $$ | $$ |$$ |__$$ |$$ |$$ |$$$$$$$$/ $$ |      
-$$       |$$ |$$ |      $$    $$/ $$    $$/ $$ | $$ | $$ |$$    $$/ $$ |$$ |$$       |$$ |      
-$$$$$$$$/ $$/ $$/        $$$$$$/   $$$$$$/  $$/  $$/  $$/ $$$$$$$/  $$/ $$/  $$$$$$$/ $$/       
-                                                          $$ |                                  
-                                                          $$ |                                  
-                                                          $$/                                   
+lil-compiler
 
 C Compiler
+Project began as a stepping stone for another compiler project.
+Looking to compare the performance and complexity between an AST and a stack machine for code generation. 
+Adheres to the C99 language standard.
 
-Purpose is to perform a rewrite of some of the front end of another compiler project
+Design
+This compiler aims to be an efficient single-pass compiler.
 
-This project will serve as the basis for future compiler projects
+Phase 1: Lexer
+This is where the tokens will be read into a token stream. The stream is generated from the file buffer
+that is provided.
+Syntax analysis is performed to ensure proper structure.
 
-Remember to put the foos in your foobars
+Phase 2: Parser
+AST generation and IR generation. 
+Symbol table lookups are performaed as well as error handling here before reaching any optimization
+or code generation phases.
+A stack machine has been tested for this use case with another
+project. I am looking to test the performance in this stage extensively before moving forward.
+
+Phase 3: Code Generation
+Looking to handle code generation myself for x86_64. Might look to port with LLVM or another toolchain in
+the future. TBD
+
